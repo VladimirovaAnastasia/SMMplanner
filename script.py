@@ -87,7 +87,7 @@ def get_content_id(id_str):
         extractor = URLExtract()
         url = extractor.find_urls(id_str)[0]
         query = urlparse(url).query
-        content_id = parse_qs(query)['id'][0]
+        content_id = parse_qs(query).get('id')[0]
         return content_id
     else:
         return None

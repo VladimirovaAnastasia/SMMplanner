@@ -27,20 +27,28 @@ WEEK = ['понедельник',
         'воскресенье']
 TODAY = datetime.datetime.now()
 
+POST_FIELDS = ['social_vk',
+               'social_tg',
+               'social_fb',
+               'day', 'hour',
+               'text_link',
+               'image_link',
+               'isPublished']
+
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 load_dotenv()
 
 
 def create_parser():
-    parser = argparse.ArgumentParser(description='Id of the Google sheet and range of data')
+    parser = argparse.ArgumentParser(description='Publish posts from Google sheet in fb, vk and tg.')
     parser.add_argument('sample_spreadsheet_id', help='The id of the Google sheet')
     parser.add_argument('sample_range_name', help='The range of data')
 
     return parser
 
 
-def init_sheet_connection():
+def get_credentials():
     creds = None
     if os.path.exists('token.pickle'):
         with open('token.pickle', 'rb') as token:
@@ -55,9 +63,15 @@ def init_sheet_connection():
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
 
+    return creds
+
+
+def init_sheet_connection():
+    creds = get_credentials()
     service = build('sheets', 'v4', credentials=creds)
 
     return service.spreadsheets()
+
 
 
 def init_google_drive_connection():
@@ -83,14 +97,13 @@ def update_sheet_data(sheet, values, sample_spreadsheet_id, sample_range_name):
 
 
 def get_content_id(id_str):
-    if id_str:
-        extractor = URLExtract()
-        url = extractor.find_urls(id_str)[0]
-        query = urlparse(url).query
-        content_id = parse_qs(query).get('id')[0]
-        return content_id
-    else:
+    if not id_str:
         return None
+    extractor = URLExtract()
+    url = extractor.find_urls(id_str)[0]
+    query = urlparse(url).query
+    content_id = parse_qs(query).get('id')[0]
+    return content_id
 
 
 def post_in_telegram(tg_token, tg_chat_id, post_img, post_text):
@@ -103,32 +116,33 @@ def post_in_telegram(tg_token, tg_chat_id, post_img, post_text):
         bot.send_message(chat_id=tg_chat_id, text=post_text)
 
 
+def send_data_to_facebook(fb_group_id, path_url,data, files=None):
+    url = urljoin('https://graph.facebook.com/', f"{fb_group_id}/{path_url}")
+
+    if not files:
+        response = requests.post(url, data=data)
+    else:
+        response = requests.post(url, files=files, data=data)
+
+    decoded_response = response.json()
+    if 'error' in decoded_response:
+        raise requests.exceptions.HTTPError(decoded_response['error'])
+
+
 def post_in_facebook(fb_token, fb_group_id, post_img, post_text):
+    data = {
+        "access_token": fb_token
+    }
+
     if post_img:
         with open(post_img, 'rb') as post_img:
             files = {'upload_file': post_img}
-            url = urljoin('https://graph.facebook.com/', f"{fb_group_id}/photos")
             if post_text:
-                data = {
-                    "access_token": fb_token,
-                    "caption": post_text}
-            else:
-                data = {
-                    "access_token": fb_token}
-            response = requests.post(url, files=files, data=data)
-            decoded_response = response.json()
-            if 'error' in decoded_response:
-                raise requests.exceptions.HTTPError(decoded_response['error'])
-    else:
-        if post_text:
-            url = urljoin('https://graph.facebook.com/', f"{fb_group_id}/feed")
-            data = {
-                "access_token": fb_token,
-                "message": post_text}
-            response = requests.post(url, data=data)
-            decoded_response = response.json()
-            if 'error' in decoded_response:
-                raise requests.exceptions.HTTPError(decoded_response['error'])
+                data["caption"] = post_text
+            send_data_to_facebook(fb_group_id, 'photos', data, files)
+    elif post_text:
+        data["message"] = post_text
+        send_data_to_facebook(fb_group_id, 'feed', data)
 
 
 def post_in_vkontakte(vk_login, vk_token, vk_album_id, vk_group_id, post_img, post_text):
@@ -164,30 +178,30 @@ def post_in_vkontakte(vk_login, vk_token, vk_album_id, vk_group_id, post_img, po
 def get_post_image(drive, image_link):
     image_id = get_content_id(image_link)
 
-    if image_id:
-        post_image = drive.CreateFile({'id': image_id})
-        post_image_title = post_image['title']
-        post_image.GetContentFile(f"{post_image_title}")
-
-        return post_image_title
-    else:
+    if not image_id:
         return None
+
+    post_image = drive.CreateFile({'id': image_id})
+    post_image_title = post_image['title']
+    post_image.GetContentFile(f"{post_image_title}")
+
+    return post_image_title
 
 
 def get_post_text(drive, text_link):
     text_id = get_content_id(text_link)
 
-    if text_id:
-        post_text_file = drive.CreateFile({'id': text_id})
-        post_text_file_title = f"{post_text_file['title'].txt}"
-        post_text_file.GetContentFile(post_text_file_title, mimetype='text/plain')
-
-        with open(post_text_file_title, 'r', encoding="utf-8") as file:
-            post_text = file.read()
-
-        return post_text
-    else:
+    if not text_id:
         return None
+
+    post_text_file = drive.CreateFile({'id': text_id})
+    post_text_file_title = f"{post_text_file}['title'].txt"
+    post_text_file.GetContentFile(post_text_file_title, mimetype='text/plain')
+
+    with open(post_text_file_title, 'r', encoding="utf-8") as file:
+        post_text = file.read()
+
+    return post_text
 
 
 def get_post_data(text_link, image_link):
@@ -220,30 +234,51 @@ def publish_post(text_link, image_link, social_vk, social_tg, social_fb):
         post_in_facebook(FB_TOKEN, FB_GROUP_ID, image_title, post_text)
 
 
-def main(sample_spreadsheet_id, sample_range_name):
+def update_post_item(item, post):
+    item.clear()
+    for value in post.values():
+        item.append(value)
+    return item
+
+
+def publish_posts(sample_spreadsheet_id, sample_range_name):
     sheet = init_sheet_connection()
     posts = get_sheet_data(sheet, sample_spreadsheet_id, sample_range_name)
 
     if not posts:
-        print('No data found.')
-    else:
-        for post in posts:
-            social_vk, social_tg, social_fb, day, hour, text_link, image_link, isPublished = post
+        return 'No data found.'
 
-            if isPublished == 'нет':
-                if (TODAY.weekday() > WEEK.index(day)) or (TODAY.weekday() == WEEK.index(day) and TODAY.hour >= hour):
-                    publish_post(text_link, image_link, social_vk, social_tg, social_fb)
-                    post[7] = 'да'
+    for item in posts:
+        post = dict(zip(POST_FIELDS, item))
 
-        update_sheet_data(sheet, posts, sample_spreadsheet_id, sample_range_name)
+        indexDayNow = TODAY.weekday()
+
+        indexPostDay = WEEK.index(post['day'])
+        hourNow = TODAY.hour
+
+        postNotPublished = post['isPublished'].lower() == 'нет'
+        postDayExpired = indexDayNow > indexPostDay
+        postHourExpired = indexDayNow == indexPostDay and hourNow >= post['hour']
+
+        if postNotPublished and postDayExpired or postHourExpired:
+            publish_post(post['text_link'], post['image_link'], post['social_vk'], post['social_tg'], post['social_fb'])
+
+            post['isPublished'] = 'да'
+            update_post_item(item, post)
+
+    update_sheet_data(sheet, posts, sample_spreadsheet_id, sample_range_name)
 
 
-if __name__ == '__main__':
+def main():
     parser = create_parser()
     args = parser.parse_args()
     sample_spreadsheet_id = args.sample_spreadsheet_id
     sample_range_name = args.sample_range_name
 
     while True:
-        main(sample_spreadsheet_id, sample_range_name)
+        publish_posts(sample_spreadsheet_id, sample_range_name)
         time.sleep(5)
+
+
+if __name__ == '__main__':
+    main()

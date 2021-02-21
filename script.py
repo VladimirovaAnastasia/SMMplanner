@@ -108,11 +108,15 @@ def update_sheet_data(sheet, values, sample_spreadsheet_id, sample_range_name):
 def get_content_id(id_str):
     if not id_str:
         return None
+
     extractor = URLExtract()
     url = extractor.find_urls(id_str)[0]
     query = urlparse(url).query
-    content_id = parse_qs(query).get('id')[0]
-    return content_id
+    content_id = parse_qs(query).get('id')
+    if not content_id:
+        return None
+
+    return content_id[0]
 
 
 def post_in_telegram(tg_token, tg_chat_id, post_img, post_text):
@@ -185,7 +189,8 @@ def post_in_vkontakte(vk_login, vk_token, vk_album_id, vk_group_id, post_img, po
         )
 
         for item in photo_info:
-            media_id = item.get('id')
+            media_id = item['id']
+
 
         if post_text:
             vk.wall.post(owner_id=f"-{vk_group_id}",

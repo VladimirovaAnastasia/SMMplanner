@@ -222,10 +222,10 @@ def get_post_text(drive, text_link):
         return None
 
     post_text_file = drive.CreateFile({'id': text_id})
-    post_text_file_title = f"{post_text_file}['title'].txt"
-    post_text_file.GetContentFile(post_text_file_title, mimetype='text/plain')
+    post_text_file_name = f"{post_text_file}['title'].txt"
+    post_text_file.GetContentFile(post_text_file_name, mimetype='text/plain')
 
-    with open(post_text_file_title, 'r', encoding="utf-8") as file:
+    with open(post_text_file_name, 'r', encoding="utf-8") as file:
         post_text = file.read()
 
     return post_text

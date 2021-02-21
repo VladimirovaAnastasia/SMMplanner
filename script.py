@@ -123,7 +123,7 @@ def post_in_telegram(tg_token, tg_chat_id, post_img, post_text):
     bot = telegram.Bot(token=tg_token)
 
     if post_img:
-        with open(post_img, 'rb') as post_img:
+        with open('post_images/' + post_img, 'rb') as post_img:
             bot.send_photo(chat_id=tg_chat_id, photo=post_img)
     if post_text:
         bot.send_message(chat_id=tg_chat_id, text=post_text)
@@ -164,7 +164,7 @@ def post_in_facebook(fb_token, fb_group_id, post_img, post_text):
     }
 
     if post_img:
-        with open(post_img, 'rb') as post_img:
+        with open('post_images/' + post_img, 'rb') as post_img:
             files = {'upload_file': post_img}
             if post_text:
                 data["caption"] = post_text
@@ -183,7 +183,7 @@ def post_in_vkontakte(vk_login, vk_token, vk_album_id, vk_group_id, post_img, po
 
     if post_img:
         photo_info = upload.photo(
-            post_img,
+            'post_images/' + post_img,
             album_id=vk_album_id,
             group_id=vk_group_id
         )
@@ -210,7 +210,8 @@ def get_post_image_title(drive, image_link):
 
     post_image = drive.CreateFile({'id': image_id})
     post_image_title = post_image['title']
-    post_image.GetContentFile(post_image_title)
+
+    post_image.GetContentFile('post_images/' + post_image_title)
 
     return post_image_title
 
@@ -222,10 +223,10 @@ def get_post_text(drive, text_link):
         return None
 
     post_text_file = drive.CreateFile({'id': text_id})
-    post_text_file_name = f"{post_text_file}['title'].txt"
-    post_text_file.GetContentFile(post_text_file_name, mimetype='text/plain')
+    post_text_file_name = f"{post_text_file['title']}.txt"
+    post_text_file.GetContentFile('post_texts/' + post_text_file_name, mimetype='text/plain')
 
-    with open(post_text_file_name, 'r', encoding="utf-8") as file:
+    with open('post_texts/' + post_text_file_name, 'r', encoding="utf-8") as file:
         post_text = file.read()
 
     return post_text

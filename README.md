@@ -46,11 +46,13 @@ FB_GROUP_ID=your_fb_group_id
  ```
  python script.py SAMPLE_SPREADSHEET_ID SAMPLE_RANGE_NAME 
  ```
-  
  `SAMPLE_SPREADSHEET_ID` - id Google таблицы (обязательный параметр), к примеру здесь  ```https://docs.google.com/spreadsheets/d/1Rz2tfqeF4Lc_Yh-ODrmfw8N-rmbpzPcY2p4Rjm9Vclc``` id  - это ```1Rz2tfqeF4Lc_Yh-ODrmfw8N-rmbpzPcY2p4Rjm9Vclc```,
 
 `SAMPLE_RANGE_NAME` - диапазон данных таблицы (обязательный параметр), например ```Лист1!A3:H15```.
  
+ 
+ Создайте в корневой папке проекта два каталога: 
+  `post_images`  и  `post_texts`, чтоб не засорять пространство с исходными файлами.
  
 ## Цель проекта
  Код написан в образовательных целях на онлайн-курсе для веб-разработчиков [dvmn.org](https://dvmn.org/modules/) 

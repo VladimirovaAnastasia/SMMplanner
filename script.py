@@ -187,9 +187,7 @@ def post_in_vkontakte(vk_login, vk_token, vk_album_id, vk_group_id, post_img, po
             album_id=vk_album_id,
             group_id=vk_group_id
         )
-
-        for item in photo_info:
-            media_id = item['id']
+        media_id = photo_info[-1]
 
 
         if post_text:
@@ -199,10 +197,9 @@ def post_in_vkontakte(vk_login, vk_token, vk_album_id, vk_group_id, post_img, po
         else:
             vk.wall.post(owner_id=f"-{vk_group_id}",
                          attachments=f"photo-{vk_group_id}_{media_id}")
-    else:
-        if post_text:
-            vk.wall.post(owner_id=f"-{vk_group_id}",
-                         message=post_text)
+    elif post_text:
+        vk.wall.post(owner_id=f"-{vk_group_id}",
+                     message=post_text)
 
 
 def get_post_image(drive, image_link):

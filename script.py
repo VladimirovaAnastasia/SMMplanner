@@ -27,7 +27,6 @@ WEEK = [
     'пятница',
     'суббота',
     'воскресенье']
-TODAY = datetime.datetime.now()
 
 POST_FIELDS = [
     'social_vk',
@@ -254,14 +253,15 @@ def publish_posts(sample_spreadsheet_id, sample_range_name):
         return None
 
     Post = namedtuple('Post', POST_FIELDS)
+    today = datetime.datetime.now()
 
     for item in posts:
         post = Post._make(item)
 
-        now_day_index = TODAY.weekday()
+        now_day_index = today.weekday()
 
         post_day_index = WEEK.index(post.day)
-        now_hour = TODAY.hour
+        now_hour = today.hour
 
         is_post_not_published = post.isPublished.lower() == 'нет'
         is_post_day_expired = now_day_index > post_day_index

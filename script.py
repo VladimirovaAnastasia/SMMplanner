@@ -272,11 +272,9 @@ def publish_posts(sample_spreadsheet_id, sample_range_name):
 def main():
     parser = create_parser()
     args = parser.parse_args()
-    sample_spreadsheet_id = args.sample_spreadsheet_id
-    sample_range_name = args.sample_range_name
 
     while True:
-        publish_posts(sample_spreadsheet_id, sample_range_name)
+        publish_posts(args.sample_spreadsheet_id, args.sample_range_name)
         time.sleep(5)
 
 

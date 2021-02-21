@@ -3,6 +3,9 @@ from dotenv import load_dotenv
 import requests
 from urllib.parse import urlparse, parse_qs, urljoin
 import datetime
+import logging
+
+from requests import HTTPError
 from urlextract import URLExtract
 import argparse
 import time
@@ -43,6 +46,8 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 load_dotenv()
 
+logging.basicConfig(level=logging.INFO)
+logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
 
 def create_parser():
     parser = argparse.ArgumentParser(description='Publish posts from Google sheet in fb, vk and tg.')
@@ -124,9 +129,25 @@ def send_data_to_facebook(fb_group_id, path_url,data, files=None):
     url = urljoin('https://graph.facebook.com/', f"{fb_group_id}/{path_url}")
 
     if not files:
-        response = requests.post(url, data=data)
+        try:
+            response = requests.post(url, data=data)
+            response.raise_for_status()
+        except HTTPError as http_err:
+            logging.error(f'HTTP error occurred: {http_err}')
+            raise
+        except Exception as err:
+            logging.error(f'Other error occurred: {err}')
+            raise
     else:
-        response = requests.post(url, files=files, data=data)
+        try:
+            response = requests.post(url, files=files, data=data)
+            response.raise_for_status()
+        except HTTPError as http_err:
+            logging.error(f'HTTP error occurred: {http_err}')
+            raise
+        except Exception as err:
+            logging.error(f'Other error occurred: {err}')
+            raise
 
     decoded_response = response.json()
     if 'error' in decoded_response:

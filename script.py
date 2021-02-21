@@ -202,7 +202,7 @@ def post_in_vkontakte(vk_login, vk_token, vk_album_id, vk_group_id, post_img, po
                      message=post_text)
 
 
-def get_post_image(drive, image_link):
+def get_post_image_title(drive, image_link):
     image_id = get_content_id(image_link)
 
     if not image_id:
@@ -234,7 +234,7 @@ def get_post_text(drive, text_link):
 def get_post_data(text_link, image_link):
     drive = init_google_drive_connection()
 
-    post_image_title = get_post_image(drive, image_link)
+    post_image_title = get_post_image_title(drive, image_link)
     post_text = get_post_text(drive, text_link)
 
     return post_image_title, post_text

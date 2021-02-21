@@ -246,7 +246,7 @@ def publish_posts(sample_spreadsheet_id, sample_range_name):
     posts = get_sheet_data(sheet, sample_spreadsheet_id, sample_range_name)
 
     if not posts:
-        return 'No data found.'
+        return None
 
     for item in posts:
         post = dict(zip(POST_FIELDS, item))

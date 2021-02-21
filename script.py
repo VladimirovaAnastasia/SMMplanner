@@ -6,6 +6,7 @@ import datetime
 from urlextract import URLExtract
 import argparse
 import time
+from collections import namedtuple
 
 from pydrive.drive import GoogleDrive
 from pydrive.auth import GoogleAuth
@@ -236,7 +237,7 @@ def publish_post(text_link, image_link, social_vk, social_tg, social_fb):
 
 def update_post_item(item, post):
     item.clear()
-    for value in post.values():
+    for value in post:
         item.append(value)
     return item
 
@@ -248,21 +249,23 @@ def publish_posts(sample_spreadsheet_id, sample_range_name):
     if not posts:
         return None
 
+    Post = namedtuple('Post', POST_FIELDS)
+
     for item in posts:
-        post = dict(zip(POST_FIELDS, item))
+        post = Post._make(item)
 
         now_day_index = TODAY.weekday()
 
-        post_day_index = WEEK.index(post['day'])
+        post_day_index = WEEK.index(post.day)
         now_hour = TODAY.hour
 
-        is_post_not_published = post['isPublished'].lower() == 'нет'
+        is_post_not_published = post.isPublished.lower() == 'нет'
         is_post_day_expired = now_day_index > post_day_index
-        is_post_hour_expired = now_day_index == post_day_index and now_hour >= post['hour']
+        is_post_hour_expired = now_day_index == post_day_index and now_hour >= post.hour
 
         if is_post_not_published and is_post_day_expired or is_post_hour_expired:
-            publish_post(post['text_link'], post['image_link'], post['social_vk'], post['social_tg'], post['social_fb'])
-            post['isPublished'] = 'да'
+            publish_post(post.text_link, post.image_link, post.social_vk, post.social_tg, post.social_fb)
+            post = post._replace(isPublished='да')
             update_post_item(item, post)
 
     update_sheet_data(sheet, posts, sample_spreadsheet_id, sample_range_name)

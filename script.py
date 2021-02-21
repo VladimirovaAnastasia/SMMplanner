@@ -87,7 +87,7 @@ def init_google_drive_connection():
 def get_sheet_data(sheet, sample_spreadsheet_id, sample_range_name):
     result = sheet.values().get(spreadsheetId=sample_spreadsheet_id,
                                 range=sample_range_name, valueRenderOption='FORMULA').execute()
-    return result.get('values', [])
+    return result.get('values', None)
 
 
 def update_sheet_data(sheet, values, sample_spreadsheet_id, sample_range_name):

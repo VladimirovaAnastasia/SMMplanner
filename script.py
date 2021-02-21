@@ -210,7 +210,7 @@ def get_post_image_title(drive, image_link):
 
     post_image = drive.CreateFile({'id': image_id})
     post_image_title = post_image['title']
-    post_image.GetContentFile(f"{post_image_title}")
+    post_image.GetContentFile(post_image_title)
 
     return post_image_title
 

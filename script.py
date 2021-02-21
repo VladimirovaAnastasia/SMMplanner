@@ -251,18 +251,17 @@ def publish_posts(sample_spreadsheet_id, sample_range_name):
     for item in posts:
         post = dict(zip(POST_FIELDS, item))
 
-        indexDayNow = TODAY.weekday()
+        now_day_index = TODAY.weekday()
 
-        indexPostDay = WEEK.index(post['day'])
-        hourNow = TODAY.hour
+        post_day_index = WEEK.index(post['day'])
+        now_hour = TODAY.hour
 
-        postNotPublished = post['isPublished'].lower() == 'нет'
-        postDayExpired = indexDayNow > indexPostDay
-        postHourExpired = indexDayNow == indexPostDay and hourNow >= post['hour']
+        is_post_not_published = post['isPublished'].lower() == 'нет'
+        is_post_day_expired = now_day_index > post_day_index
+        is_post_hour_expired = now_day_index == post_day_index and now_hour >= post['hour']
 
-        if postNotPublished and postDayExpired or postHourExpired:
+        if is_post_not_published and is_post_day_expired or is_post_hour_expired:
             publish_post(post['text_link'], post['image_link'], post['social_vk'], post['social_tg'], post['social_fb'])
-
             post['isPublished'] = 'да'
             update_post_item(item, post)
 

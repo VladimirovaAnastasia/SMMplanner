@@ -19,22 +19,26 @@ from google.auth.transport.requests import Request
 import telegram
 import vk_api
 
-WEEK = ['понедельник',
-        'вторник',
-        'среда',
-        'четверг',
-        'пятница',
-        'суббота',
-        'воскресенье']
+WEEK = [
+    'понедельник',
+    'вторник',
+    'среда',
+    'четверг',
+    'пятница',
+    'суббота',
+    'воскресенье']
 TODAY = datetime.datetime.now()
 
-POST_FIELDS = ['social_vk',
-               'social_tg',
-               'social_fb',
-               'day', 'hour',
-               'text_link',
-               'image_link',
-               'isPublished']
+POST_FIELDS = [
+    'social_vk',
+    'social_tg',
+    'social_fb',
+    'day',
+    'hour',
+    'text_link',
+    'image_link',
+    'isPublished'
+]
 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 

@@ -260,7 +260,7 @@ def publish_posts(sample_spreadsheet_id, sample_range_name):
 
         now_day_index = today.weekday()
 
-        post_day_index = WEEK.index(post.day)
+        post_day_index = WEEK_DAYS.index(post.day)
         now_hour = today.hour
 
         is_post_not_published = post.isPublished.lower() == 'нет'

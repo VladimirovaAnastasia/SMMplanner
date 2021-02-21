@@ -19,7 +19,7 @@ from google.auth.transport.requests import Request
 import telegram
 import vk_api
 
-WEEK = [
+WEEK_DAYS = [
     'понедельник',
     'вторник',
     'среда',

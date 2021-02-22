@@ -5,6 +5,8 @@ from urllib.parse import urlparse, parse_qs, urljoin
 import datetime
 import logging
 
+from google.auth.exceptions import TransportError
+from httplib2 import ServerNotFoundError
 from requests import HTTPError
 from urlextract import URLExtract
 import argparse
@@ -13,6 +15,7 @@ from collections import namedtuple
 
 from pydrive.drive import GoogleDrive
 from pydrive.auth import GoogleAuth
+from pydrive.files import ApiRequestError
 
 import pickle
 from googleapiclient.discovery import build
@@ -21,6 +24,7 @@ from google.auth.transport.requests import Request
 
 import telegram
 import vk_api
+from telegram import TelegramError
 
 WEEK_DAYS = [
     'понедельник',
@@ -29,7 +33,8 @@ WEEK_DAYS = [
     'четверг',
     'пятница',
     'суббота',
-    'воскресенье']
+    'воскресенье'
+]
 
 POST_FIELDS = [
     'social_vk',
@@ -46,8 +51,12 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 load_dotenv()
 
-logging.basicConfig(level=logging.INFO)
-logging.getLogger('googleapiclient.discovery_cache').setLevel(logging.ERROR)
+logging.basicConfig(
+    filename='log/logging.log',
+    level=logging.INFO,
+    format="%(asctime)s - [%(levelname)s] - %(name)s - (%(filename)s).%(funcName)s(%(lineno)d) - %(message)s",
+)
+
 
 def create_parser():
     parser = argparse.ArgumentParser(description='Publish posts from Google sheet in fb, vk and tg.')
@@ -80,7 +89,6 @@ def init_sheet_connection():
     service = build('sheets', 'v4', credentials=creds)
 
     return service.spreadsheets()
-
 
 
 def init_google_drive_connection():
@@ -121,7 +129,6 @@ def get_content_id(id_str):
 
 def post_in_telegram(tg_token, tg_chat_id, post_img, post_text):
     bot = telegram.Bot(token=tg_token)
-
     if post_img:
         with open('post_images/' + post_img, 'rb') as post_img:
             bot.send_photo(chat_id=tg_chat_id, photo=post_img)
@@ -129,7 +136,7 @@ def post_in_telegram(tg_token, tg_chat_id, post_img, post_text):
         bot.send_message(chat_id=tg_chat_id, text=post_text)
 
 
-def send_data_to_facebook(fb_group_id, path_url,data, files=None):
+def send_data_to_facebook(fb_group_id, path_url, data, files=None):
     url = urljoin('https://graph.facebook.com/', f"{fb_group_id}/{path_url}")
 
     if not files:
@@ -189,7 +196,6 @@ def post_in_vkontakte(vk_login, vk_token, vk_album_id, vk_group_id, post_img, po
         )
         media_id = photo_info[-1]
 
-
         if post_text:
             vk.wall.post(owner_id=f"-{vk_group_id}",
                          message=post_text,
@@ -207,7 +213,6 @@ def get_post_image_title(drive, image_link):
 
     if not image_id:
         return None
-
     post_image = drive.CreateFile({'id': image_id})
     post_image_title = post_image['title']
 
@@ -234,7 +239,6 @@ def get_post_text(drive, text_link):
 
 def get_post_data(text_link, image_link):
     drive = init_google_drive_connection()
-
     post_image_title = get_post_image_title(drive, image_link)
     post_text = get_post_text(drive, text_link)
 
@@ -270,33 +274,56 @@ def update_post_item(item, post):
 
 
 def publish_posts(sample_spreadsheet_id, sample_range_name):
-    sheet = init_sheet_connection()
-    posts = get_sheet_data(sheet, sample_spreadsheet_id, sample_range_name)
+    try:
+        sheet = init_sheet_connection()
+        posts = get_sheet_data(sheet, sample_spreadsheet_id, sample_range_name)
 
-    if not posts:
-        return None
+        if not posts:
+            return None
 
-    Post = namedtuple('Post', POST_FIELDS)
-    today = datetime.datetime.now()
+        Post = namedtuple('Post', POST_FIELDS)
+        today = datetime.datetime.now()
 
-    for item in posts:
-        post = Post._make(item)
+        try:
+            for item in posts:
 
-        now_day_index = today.weekday()
+                post = Post._make(item)
 
-        post_day_index = WEEK_DAYS.index(post.day)
-        now_hour = today.hour
+                now_day_index = today.weekday()
 
-        is_post_not_published = post.isPublished.lower() == 'нет'
-        is_post_day_expired = now_day_index > post_day_index
-        is_post_hour_expired = now_day_index == post_day_index and now_hour >= post.hour
+                post_day_index = WEEK_DAYS.index(post.day)
+                now_hour = today.hour
 
-        if is_post_not_published and is_post_day_expired or is_post_hour_expired:
-            publish_post(post.text_link, post.image_link, post.social_vk, post.social_tg, post.social_fb)
-            post = post._replace(isPublished='да')
-            update_post_item(item, post)
+                is_post_not_published = post.isPublished.lower() == 'нет'
+                is_post_day_expired = now_day_index > post_day_index
+                is_post_hour_expired = now_day_index == post_day_index and now_hour >= post.hour
+                print(is_post_not_published, is_post_day_expired, is_post_hour_expired)
 
-    update_sheet_data(sheet, posts, sample_spreadsheet_id, sample_range_name)
+                if is_post_not_published and (is_post_day_expired or is_post_hour_expired):
+                    print(post)
+                    publish_post(post.text_link, post.image_link, post.social_vk, post.social_tg, post.social_fb)
+                    post = post._replace(isPublished='да')
+                    update_post_item(item, post)
+
+            update_sheet_data(sheet, posts, sample_spreadsheet_id, sample_range_name)
+
+        except TelegramError as error:
+            logging.error('Can not publish post in tg: {0}'.format(error))
+            raise
+        except (vk_api.VkApiError, vk_api.ApiHttpError, vk_api.AuthError) as error:
+            logging.error('Can not publish post in vk: {0}'.format(error))
+            raise
+        except ApiRequestError as error:
+            logging.exception(f'{error}')
+        except HTTPError as http_err:
+            logging.error(f'HTTP error occurred: {http_err}')
+
+    except TransportError as error:
+        logging.exception(f'{error}')
+    except ServerNotFoundError as error:
+        logging.exception(f'{error}')
+    finally:
+        time.sleep(5)
 
 
 def main():
@@ -305,7 +332,6 @@ def main():
 
     while True:
         publish_posts(args.sample_spreadsheet_id, args.sample_range_name)
-        time.sleep(5)
 
 
 if __name__ == '__main__':

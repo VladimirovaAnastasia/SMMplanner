@@ -5,7 +5,7 @@ from urllib.parse import urlparse, parse_qs, urljoin
 import datetime
 import logging
 
-from google.auth.exceptions import TransportError
+from google.auth.exceptions import TransportError, RefreshError
 from httplib2 import ServerNotFoundError
 from requests import HTTPError
 from urlextract import URLExtract
@@ -80,7 +80,6 @@ def get_credentials():
             creds = flow.run_local_server(port=0)
         with open('token.pickle', 'wb') as token:
             pickle.dump(creds, token)
-
     return creds
 
 
@@ -297,10 +296,8 @@ def publish_posts(sample_spreadsheet_id, sample_range_name):
                 is_post_not_published = post.isPublished.lower() == 'нет'
                 is_post_day_expired = now_day_index > post_day_index
                 is_post_hour_expired = now_day_index == post_day_index and now_hour >= post.hour
-                print(is_post_not_published, is_post_day_expired, is_post_hour_expired)
 
                 if is_post_not_published and (is_post_day_expired or is_post_hour_expired):
-                    print(post)
                     publish_post(post.text_link, post.image_link, post.social_vk, post.social_tg, post.social_fb)
                     post = post._replace(isPublished='да')
                     update_post_item(item, post)
@@ -322,6 +319,8 @@ def publish_posts(sample_spreadsheet_id, sample_range_name):
         logging.exception(f'{error}')
     except ServerNotFoundError as error:
         logging.exception(f'{error}')
+    except RefreshError as error:
+        logging.exception(f'You may need to delete token.pickle {error}')
     finally:
         time.sleep(5)
 

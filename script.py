@@ -49,13 +49,7 @@ POST_FIELDS = [
 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
-load_dotenv()
-
-logging.basicConfig(
-    filename='log/logging.log',
-    level=logging.INFO,
-    format="%(asctime)s - [%(levelname)s] - %(name)s - (%(filename)s).%(funcName)s(%(lineno)d) - %(message)s",
-)
+logger = logging.getLogger()
 
 
 def create_parser():
@@ -139,25 +133,11 @@ def send_data_to_facebook(fb_group_id, path_url, data, files=None):
     url = urljoin('https://graph.facebook.com/', f"{fb_group_id}/{path_url}")
 
     if not files:
-        try:
-            response = requests.post(url, data=data)
-            response.raise_for_status()
-        except HTTPError as http_err:
-            logging.error(f'HTTP error occurred: {http_err}')
-            raise
-        except Exception as err:
-            logging.error(f'Other error occurred: {err}')
-            raise
+        response = requests.post(url, data=data)
+        response.raise_for_status()
     else:
-        try:
-            response = requests.post(url, files=files, data=data)
-            response.raise_for_status()
-        except HTTPError as http_err:
-            logging.error(f'HTTP error occurred: {http_err}')
-            raise
-        except Exception as err:
-            logging.error(f'Other error occurred: {err}')
-            raise
+        response = requests.post(url, files=files, data=data)
+        response.raise_for_status()
 
     decoded_response = response.json()
     if 'error' in decoded_response:
@@ -248,21 +228,21 @@ def publish_post(text_link, image_link, social_vk, social_tg, social_fb):
     image_title, post_text = get_post_data(text_link, image_link)
 
     if social_vk == 'да':
-        VK_LOGIN = os.getenv("VK_LOGIN")
-        VK_TOKEN = os.getenv("VK_TOKEN")
-        VK_ALBUM_ID = os.getenv("VK_ALBUM_ID")
-        VK_GROUP_ID = os.getenv("VK_GROUP_ID")
-        post_in_vkontakte(VK_LOGIN, VK_TOKEN, VK_ALBUM_ID, VK_GROUP_ID, image_title, post_text)
+        vk_login = os.getenv("VK_LOGIN")
+        vk_token = os.getenv("VK_TOKEN")
+        vk_album_id = os.getenv("VK_ALBUM_ID")
+        vk_group_id = os.getenv("VK_GROUP_ID")
+        post_in_vkontakte(vk_login, vk_token, vk_album_id, vk_group_id, image_title, post_text)
 
     if social_tg == 'да':
-        TG_TOKEN = os.getenv("TG_TOKEN")
-        TG_CHAT_ID = os.getenv("TG_CHAT_ID")
-        post_in_telegram(TG_TOKEN, TG_CHAT_ID, image_title, post_text)
+        tg_token = os.getenv("TG_TOKEN")
+        tg_chat_id = os.getenv("TG_CHAT_ID")
+        post_in_telegram(tg_token, tg_chat_id, image_title, post_text)
 
     if social_fb == 'да':
-        FB_TOKEN = os.getenv("FB_TOKEN")
-        FB_GROUP_ID = os.getenv("FB_GROUP_ID")
-        post_in_facebook(FB_TOKEN, FB_GROUP_ID, image_title, post_text)
+        fb_token = os.getenv("FB_TOKEN")
+        fb_group_id = os.getenv("FB_GROUP_ID")
+        post_in_facebook(fb_token, fb_group_id, image_title, post_text)
 
 
 def update_post_item(item, post):
@@ -283,49 +263,53 @@ def publish_posts(sample_spreadsheet_id, sample_range_name):
         Post = namedtuple('Post', POST_FIELDS)
         today = datetime.datetime.now()
 
-        try:
-            for item in posts:
+        for item in posts:
 
-                post = Post._make(item)
+            post = Post._make(item)
 
-                now_day_index = today.weekday()
+            now_day_index = today.weekday()
 
-                post_day_index = WEEK_DAYS.index(post.day)
-                now_hour = today.hour
+            post_day_index = WEEK_DAYS.index(post.day)
+            now_hour = today.hour
 
-                is_post_not_published = post.isPublished.lower() == 'нет'
-                is_post_day_expired = now_day_index > post_day_index
-                is_post_hour_expired = now_day_index == post_day_index and now_hour >= post.hour
+            is_post_not_published = post.isPublished.lower() == 'нет'
+            is_post_day_expired = now_day_index > post_day_index
+            is_post_hour_expired = now_day_index == post_day_index and now_hour >= post.hour
 
-                if is_post_not_published and (is_post_day_expired or is_post_hour_expired):
-                    publish_post(post.text_link, post.image_link, post.social_vk, post.social_tg, post.social_fb)
-                    post = post._replace(isPublished='да')
-                    update_post_item(item, post)
+            if is_post_not_published and (is_post_day_expired or is_post_hour_expired):
+                publish_post(post.text_link, post.image_link, post.social_vk, post.social_tg, post.social_fb)
+                post = post._replace(isPublished='да')
+                update_post_item(item, post)
 
-            update_sheet_data(sheet, posts, sample_spreadsheet_id, sample_range_name)
-
-        except TelegramError as error:
-            logging.error('Can not publish post in tg: {0}'.format(error))
-            raise
-        except (vk_api.VkApiError, vk_api.ApiHttpError, vk_api.AuthError) as error:
-            logging.error('Can not publish post in vk: {0}'.format(error))
-            raise
-        except ApiRequestError as error:
-            logging.exception(f'{error}')
-        except HTTPError as http_err:
-            logging.error(f'HTTP error occurred: {http_err}')
-
+        update_sheet_data(sheet, posts, sample_spreadsheet_id, sample_range_name)
+    except TelegramError as error:
+        logger.exception('Can not publish post in tg: {0}'.format(error))
+    except (vk_api.VkApiError, vk_api.ApiHttpError, vk_api.AuthError) as error:
+        logger.exception('Can not publish post in vk: {0}'.format(error))
+    except ApiRequestError as error:
+        logger.exception(f'{error}')
+    except HTTPError as http_err:
+        logger.exception(f'HTTP error occurred: {http_err}')
     except TransportError as error:
-        logging.exception(f'{error}')
+        logger.exception(f'{error}')
     except ServerNotFoundError as error:
-        logging.exception(f'{error}')
+        logger.exception(f'{error}')
     except RefreshError as error:
-        logging.exception(f'You may need to delete token.pickle {error}')
+        logger.exception(f'You may need to delete token.pickle {error}')
+    except Exception as error:
+        logger.exception(f'Other error occurred: {error}')
     finally:
         time.sleep(5)
 
 
 def main():
+    logging.basicConfig(
+        filename='log/logging.log',
+        level=logging.INFO,
+        format="%(asctime)s - [%(levelname)s] - %(name)s - (%(filename)s).%(funcName)s(%(lineno)d) - %(message)s",
+    )
+    logger.setLevel(logging.INFO)
+    load_dotenv()
     parser = create_parser()
     args = parser.parse_args()
 
